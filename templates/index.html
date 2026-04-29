@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>数学函数可视化</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { padding: 8px; width: 100%; max-width: 400px; }
+        button { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #chart-container { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>📈 二维函数可视化工具</h1>
+
+    <div class="form-group">
+        <label>函数表达式（示例：np.sin(x)、x**2、np.cos(x)*np.exp(-0.1*x)）：</label>
+        <input type="text" id="expression" value="np.sin(x)">
+    </div>
+
+    <div class="form-group">
+        <label>X轴最小值：</label>
+        <input type="number" id="x_min" value="-10">
+    </div>
+
+    <div class="form-group">
+        <label>X轴最大值：</label>
+        <input type="number" id="x_max" value="10">
+    </div>
+
+    <button onclick="drawFunction()">绘制图像</button>
+
+    <div id="chart-container">
+        <canvas id="myChart"></canvas>
+    </div>
+
+    <script>
+        let myChart;
+
+        async function drawFunction() {
+            const expr = document.getElementById('expression').value;
+            const x_min = parseFloat(document.getElementById('x_min').value);
+            const x_max = parseFloat(document.getElementById('x_max').value);
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/api/2d-function', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        expression: expr,
+                        x_min: x_min,
+                        x_max: x_max,
+                        num_points: 1000
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    alert('错误：' + data.error);
+                    return;
+                }
+
+                if (myChart) {
+                    myChart.destroy();
+                }
+
+                const ctx = document.getElementById('myChart').getContext('2d');
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.x,
+                        datasets: [{
+                            label: `y = ${expr}`,
+                            data: data.y,
+                            borderColor: '#007bff',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: {title: { display: true, text: 'x' },
+                                ticks: { maxTicksLimit: 10 }
+             },
+                            y: { title: { display: true, text: 'y' } }
+                        }
+                    }
+                });
+
+            } catch (err) {
+                alert('请求失败：' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>

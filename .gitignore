@@ -1,0 +1,21 @@
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# Python缓存文件
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Flask相关临时文件
+.flaskenv
+*.log
+instance/
+
+# 编辑器配置
+.idea/
+.vscode/
+*.swp
+*.swo
