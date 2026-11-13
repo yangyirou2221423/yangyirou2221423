@@ -2,101 +2,111 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>数学函数可视化</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 30px auto; padding: 0 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; }
-        input { padding: 8px; width: 100%; max-width: 400px; }
-        button { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        #chart-container { margin-top: 20px; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>函数图像 · 数学可视化</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M5 22c5-14 8 4 12-4s6 4 10-2' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem("mathviz-theme");
+                if (theme === "light" || theme === "dark") {
+                    document.documentElement.dataset.theme = theme;
+                }
+            } catch (error) {
+                /* 隐私模式下 localStorage 可能不可用 */
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+            integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+            crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/dist/chartjs-plugin-zoom.min.js"
+            integrity="sha384-dwwI6ICEN/0ZQlS5owhUa/6ZzvwUPmjH45bFVCAcjgjTulbHJvlE+TGU3g1k0N3R"
+            crossorigin="anonymous"></script>
+    <script defer src="{{ url_for('static', filename='app.js') }}"></script>
 </head>
 <body>
-    <h1>📈 二维函数可视化工具</h1>
+    <div class="page">
+        <header class="masthead">
+            <div class="masthead__text">
+                <h1>函数图像</h1>
+                <p class="lede">把 <span class="inline-formula">y = f(x)</span> 画出来。滚轮缩放，拖拽平移。</p>
+            </div>
+            <button type="button" class="theme-toggle" id="theme-toggle" aria-label="切换深浅色" aria-pressed="false">
+                <span class="theme-toggle__icon" id="theme-icon" aria-hidden="true"></span>
+                <span id="theme-label">深色</span>
+            </button>
+        </header>
 
-    <div class="form-group">
-        <label>函数表达式（示例：np.sin(x)、x**2、np.cos(x)*np.exp(-0.1*x)）：</label>
-        <input type="text" id="expression" value="np.sin(x)">
+        <main class="workspace">
+            <section class="panel controls" aria-labelledby="controls-title">
+                <h2 class="panel__title" id="controls-title">函数与范围</h2>
+                <form id="plot-form" novalidate>
+                    <div class="field">
+                        <div class="field__head">
+                            <span class="field__label" id="functions-label">函数</span>
+                            <span class="field__hint">最多 5 条</span>
+                        </div>
+                        <ul class="function-list" id="function-list" aria-labelledby="functions-label"></ul>
+                        <button type="button" class="button button--ghost button--block" id="add-function">＋ 添加函数</button>
+                    </div>
+
+                    <fieldset class="field range-field">
+                        <legend class="field__label">X 轴范围</legend>
+                        <div class="range-grid">
+                            <label class="control" for="x-min">
+                                <span>最小值</span>
+                                <input type="number" id="x-min" value="-10" step="any" inputmode="decimal">
+                            </label>
+                            <label class="control" for="x-max">
+                                <span>最大值</span>
+                                <input type="number" id="x-max" value="10" step="any" inputmode="decimal">
+                            </label>
+                            <label class="control control--wide" for="num-points">
+                                <span>采样点数</span>
+                                <input type="number" id="num-points" value="1000" min="10" max="5000" step="1" inputmode="numeric">
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <button type="submit" class="button button--primary" id="plot-button">绘制图像</button>
+                    <div class="errors" id="errors" role="alert" hidden></div>
+                </form>
+
+                <details class="help">
+                    <summary>支持的写法</summary>
+                    <div class="help__body">
+                        <p>运算符 <code>+ - * / **</code>；比较 <code>&gt; &lt; &gt;= &lt;= == !=</code>，用 <code>&amp;</code> / <code>|</code> 组合条件；常量 <code>pi</code>、<code>e</code>、<code>tau</code>。</p>
+                        <p>常用函数 <code>sin</code> <code>cos</code> <code>tan</code> <code>exp</code> <code>log</code> <code>sqrt</code> <code>abs</code> <code>floor</code> <code>where</code>，也可以写 <code>np.sin(x)</code>。</p>
+                        <p>乘方用 <code>**</code>，不支持 <code>^</code>；定义域之外的值会自动断开。</p>
+                        <div class="examples" id="examples" aria-label="示例表达式"></div>
+                    </div>
+                </details>
+            </section>
+
+            <section class="panel chart-panel" aria-labelledby="chart-title">
+                <div class="chart-head">
+                    <h2 class="panel__title" id="chart-title">图像</h2>
+                    <div class="chart-tools">
+                        <span class="hint" id="zoom-hint">滚轮缩放 · 拖拽平移</span>
+                        <button type="button" class="button button--ghost button--small" id="reset-zoom" disabled>重置视图</button>
+                        <button type="button" class="button button--ghost button--small" id="export-png" disabled>导出 PNG</button>
+                    </div>
+                </div>
+                <div class="chart-wrap" id="chart-wrap">
+                    <canvas id="chart" role="img" aria-label="函数图像" aria-describedby="zoom-hint">你的浏览器不支持 Canvas。</canvas>
+                    <div class="chart-overlay" id="empty-state" hidden>没有可绘制的曲线</div>
+                    <div class="chart-loading" id="loading" hidden>计算中…</div>
+                    <div class="chart-error" id="chart-error" role="alert" hidden></div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="page-footer">
+            本地运行 · 表达式在服务器端按白名单求值，不执行任意代码
+        </footer>
     </div>
-
-    <div class="form-group">
-        <label>X轴最小值：</label>
-        <input type="number" id="x_min" value="-10">
-    </div>
-
-    <div class="form-group">
-        <label>X轴最大值：</label>
-        <input type="number" id="x_max" value="10">
-    </div>
-
-    <button onclick="drawFunction()">绘制图像</button>
-
-    <div id="chart-container">
-        <canvas id="myChart"></canvas>
-    </div>
-
-    <script>
-        let myChart;
-
-        async function drawFunction() {
-            const expr = document.getElementById('expression').value;
-            const x_min = parseFloat(document.getElementById('x_min').value);
-            const x_max = parseFloat(document.getElementById('x_max').value);
-
-            try {
-                const response = await fetch('http://127.0.0.1:5000/api/2d-function', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        expression: expr,
-                        x_min: x_min,
-                        x_max: x_max,
-                        num_points: 1000
-                    })
-                });
-
-                const data = await response.json();
-                if (data.error) {
-                    alert('错误：' + data.error);
-                    return;
-                }
-
-                if (myChart) {
-                    myChart.destroy();
-                }
-
-                const ctx = document.getElementById('myChart').getContext('2d');
-                myChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: data.x,
-                        datasets: [{
-                            label: `y = ${expr}`,
-                            data: data.y,
-                            borderColor: '#007bff',
-                            borderWidth: 2,
-                            pointRadius: 0,
-                            tension: 0.1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            x: {title: { display: true, text: 'x' },
-                                ticks: { maxTicksLimit: 10 }
-             },
-                            y: { title: { display: true, text: 'y' } }
-                        }
-                    }
-                });
-
-            } catch (err) {
-                alert('请求失败：' + err.message);
-            }
-        }
-    </script>
 </body>
 </html>

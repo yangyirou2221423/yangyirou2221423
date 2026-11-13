@@ -19,3 +19,9 @@ instance/
 .vscode/
 *.swp
 *.swo
+
+# 测试与覆盖率
+.pytest_cache/
+.coverage
+htmlcov/
+
